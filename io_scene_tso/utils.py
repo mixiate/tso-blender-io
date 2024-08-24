@@ -18,6 +18,12 @@ def read_string(file: typing.BinaryIO) -> str:
     return file.read(length).decode("windows-1252")
 
 
+def read_string_16_bit_length_be(file: typing.BinaryIO) -> str:
+    """Read a pascal string from a file."""
+    length = struct.unpack('>H', file.read(2))[0]
+    return file.read(length).decode("windows-1252")
+
+
 @dataclasses.dataclass
 class Property:
     """A property."""

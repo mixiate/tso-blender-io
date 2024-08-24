@@ -4,6 +4,7 @@ import bpy
 import logging
 import pathlib
 
+from . import import_anim
 from . import import_skel
 from . import utils
 
@@ -23,7 +24,22 @@ def import_files(
     for file_path in file_paths:
         try:
             if file_path.suffix == ".skel":
-                import_skel.import_skel(context, file_path)
+                context.view_layer.objects.active = import_skel.import_skel(context, file_path)
 
         except utils.FileReadError as _:  # noqa: PERF203
             logger.info(f"Could not import {file_path}")  # noqa: G004
+
+    active_armature = context.view_layer.objects.active
+
+    for file_path in file_paths:
+        if active_armature is not None and active_armature.type == 'ARMATURE':
+            try:
+                if file_path.suffix == ".anim":
+                    import_anim.import_anim(context, file_path, active_armature)
+
+            except utils.FileReadError as _:
+                logger.info(f"Could not import {file_path}")  # noqa: G004
+
+        else:
+            logger.info("Please select an armature to apply the animation to.")
+            break

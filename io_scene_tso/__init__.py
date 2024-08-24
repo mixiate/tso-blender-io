@@ -38,7 +38,7 @@ class TSOIOImport(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_options: typing.ClassVar[set[str]] = {'UNDO'}
 
     filter_glob: bpy.props.StringProperty(  # type: ignore[valid-type]
-        default="*.skel",
+        default="*.skel;*.anim",
         options={'HIDDEN'},
     )
     files: bpy.props.CollectionProperty(  # type: ignore[valid-type]
