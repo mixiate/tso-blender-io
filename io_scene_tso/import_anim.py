@@ -38,7 +38,6 @@ def import_anim(
     action.frame_range = (1.0, animation.motions[0].frame_count)
 
     action["Distance"] = animation.distance
-    action["Moves"] = animation.moves
 
     for motion in animation.motions:
         bone = armature_object.pose.bones.get(motion.bone_name)
@@ -59,7 +58,7 @@ def import_anim(
 
         for frame in range(motion.frame_count):
             translation = mathutils.Matrix()
-            if motion.positions_used_flag:
+            if motion.uses_positions:
                 translation = animation.translations[motion.position_offset + frame]
                 translation = mathutils.Matrix.Translation(
                     mathutils.Vector(
@@ -72,7 +71,7 @@ def import_anim(
                 )
 
             rotation = mathutils.Matrix()
-            if motion.rotations_used_flag:
+            if motion.uses_rotations:
                 rotation = animation.rotations[motion.rotation_offset + frame]
                 rotation = (
                     mathutils.Quaternion(
@@ -95,26 +94,26 @@ def import_anim(
             )
             bone_matrix @= utils.BONE_ROTATION_OFFSET
 
-            if motion.positions_used_flag:
+            if motion.uses_positions:
                 translation = bone_matrix.to_translation()
                 positions_x += (float(frame + 1), translation.x)
                 positions_y += (float(frame + 1), translation.y)
                 positions_z += (float(frame + 1), translation.z)
 
-            if motion.rotations_used_flag:
+            if motion.uses_rotations:
                 rotation = bone_matrix.to_quaternion()
                 rotations_w += (float(frame + 1), rotation.w)
                 rotations_x += (float(frame + 1), rotation.x)
                 rotations_y += (float(frame + 1), rotation.y)
                 rotations_z += (float(frame + 1), rotation.z)
 
-        if motion.positions_used_flag:
+        if motion.uses_positions:
             data_path = bone.path_from_id("location")
             create_fcurve_data(action, data_path, 0, motion.frame_count, positions_x)
             create_fcurve_data(action, data_path, 1, motion.frame_count, positions_y)
             create_fcurve_data(action, data_path, 2, motion.frame_count, positions_z)
 
-        if motion.rotations_used_flag:
+        if motion.uses_rotations:
             data_path = bone.path_from_id("rotation_quaternion")
             create_fcurve_data(action, data_path, 0, motion.frame_count, rotations_w)
             create_fcurve_data(action, data_path, 1, motion.frame_count, rotations_x)

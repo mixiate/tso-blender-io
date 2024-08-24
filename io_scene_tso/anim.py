@@ -1,4 +1,4 @@
-"""Read The Sims Online anim files."""
+"""Read and write The Sims Online anim files."""
 
 import dataclasses
 import mathutils
@@ -30,6 +30,14 @@ def read_time_properties(file: typing.BinaryIO) -> list[TimeProperty]:
     ]
 
 
+def write_time_properties(file: typing.BinaryIO, time_properties: list[TimeProperty]) -> None:
+    """Write time properties to a file."""
+    file.write(struct.pack('>I', len(time_properties)))
+    for time_property in time_properties:
+        file.write(struct.pack('>I', time_property.time))
+        utils.write_property_lists(file, time_property.property_lists)
+
+
 @dataclasses.dataclass
 class TimePropertyList:
     """A time property list."""
@@ -48,6 +56,13 @@ def read_time_property_lists(file: typing.BinaryIO) -> list[TimePropertyList]:
     ]
 
 
+def write_time_property_lists(file: typing.BinaryIO, time_property_lists: list[TimePropertyList]) -> None:
+    """Write time property lists to a file."""
+    file.write(struct.pack('>I', len(time_property_lists)))
+    for time_property_list in time_property_lists:
+        write_time_properties(file, time_property_list.time_properties)
+
+
 @dataclasses.dataclass
 class Motion:
     """An anim motion."""
@@ -55,8 +70,8 @@ class Motion:
     bone_name: str
     frame_count: int
     duration: float
-    positions_used_flag: int
-    rotations_used_flag: int
+    uses_positions: bool
+    uses_rotations: bool
     position_offset: int
     rotation_offset: int
     property_lists: list[utils.PropertyList]
@@ -70,8 +85,8 @@ def read_motion(file: typing.BinaryIO) -> Motion:
     bone_name = utils.read_string(file)
     frame_count = struct.unpack('>I', file.read(4))[0]
     duration = struct.unpack('<f', file.read(4))[0]
-    positions_used_flag = struct.unpack('<B', file.read(1))[0]
-    rotations_used_flag = struct.unpack('<B', file.read(1))[0]
+    uses_positions = struct.unpack('<B', file.read(1))[0] != 0
+    uses_rotations = struct.unpack('<B', file.read(1))[0] != 0
     position_offset = struct.unpack('>i', file.read(4))[0]
     rotation_offset = struct.unpack('>i', file.read(4))[0]
 
@@ -85,13 +100,46 @@ def read_motion(file: typing.BinaryIO) -> Motion:
         bone_name,
         frame_count,
         duration,
-        positions_used_flag,
-        rotations_used_flag,
+        uses_positions,
+        uses_rotations,
         position_offset,
         rotation_offset,
         property_lists,
         time_property_lists,
     )
+
+
+def write_motion(file: typing.BinaryIO, motion: Motion) -> None:
+    """Write a motion to a file."""
+    file.write(struct.pack('>I', 1))
+    utils.write_string(file, motion.bone_name)
+    file.write(struct.pack('>I', motion.frame_count))
+    file.write(struct.pack('<f', motion.duration))
+    file.write(struct.pack('B', motion.uses_positions))
+    file.write(struct.pack('B', motion.uses_rotations))
+    file.write(struct.pack('>i', motion.position_offset))
+    file.write(struct.pack('>i', motion.rotation_offset))
+
+    file.write(struct.pack('B', len(motion.property_lists) != 0))
+    if len(motion.property_lists):
+        utils.write_property_lists(file, motion.property_lists)
+
+    file.write(struct.pack('B', len(motion.time_property_lists) != 0))
+    if len(motion.time_property_lists):
+        write_time_property_lists(file, motion.time_property_lists)
+
+
+def write_translation(file: typing.BinaryIO, translation: mathutils.Vector) -> None:
+    """Write a translation to a file."""
+    file.write(struct.pack('<3f', *translation.xzy))
+
+
+def write_rotation(file: typing.BinaryIO, rotation: mathutils.Quaternion) -> None:
+    """Write a rotation to a file."""
+    file.write(struct.pack('<f', rotation.x))
+    file.write(struct.pack('<f', rotation.z))
+    file.write(struct.pack('<f', rotation.y))
+    file.write(struct.pack('<f', rotation.w))
 
 
 @dataclasses.dataclass
@@ -139,6 +187,29 @@ def read_anim(file: typing.BinaryIO) -> Anim:
     )
 
 
+def write_anim(file: typing.BinaryIO, animation: Anim) -> None:
+    """Write an anim to a file."""
+    file.write(struct.pack('>I', 0x02))
+
+    utils.write_string_16_bit_length_be(file, animation.name)
+
+    file.write(struct.pack('<f', animation.duration))
+    file.write(struct.pack('<f', animation.distance))
+    file.write(struct.pack('B', animation.moves))
+
+    file.write(struct.pack('>I', len(animation.translations)))
+    for translation in animation.translations:
+        write_translation(file, translation)
+
+    file.write(struct.pack('>I', len(animation.rotations)))
+    for rotation in animation.rotations:
+        write_rotation(file, rotation)
+
+    file.write(struct.pack('>I', len(animation.motions)))
+    for motion in animation.motions:
+        write_motion(file, motion)
+
+
 def read_file(file_path: pathlib.Path) -> Anim:
     """Read an anim file."""
     try:
@@ -152,3 +223,9 @@ def read_file(file_path: pathlib.Path) -> Anim:
 
     except (OSError, struct.error) as exception:
         raise utils.FileReadError from exception
+
+
+def write_file(file_path: pathlib.Path, animation: Anim) -> None:
+    """Write an anim file."""
+    with file_path.open('wb') as file:
+        write_anim(file, animation)

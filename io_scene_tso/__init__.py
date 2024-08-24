@@ -77,12 +77,63 @@ class TSOIOImport(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         return {'FINISHED'}
 
 
+class TSOIOExport(bpy.types.Operator):
+    """Import The Sims Online files."""
+
+    bl_idname = "tsoblenderio.export"
+    bl_label = "The Sims Online (.mesh/.anim)"
+    bl_description = "Export mesh and anim files for The Sims Online"
+
+    directory: bpy.props.StringProperty(  # type: ignore[valid-type]
+        name="Output Directory Path",
+        description="Output Directory Path",
+        subtype='DIR_PATH',
+    )
+
+    filter_folder: bpy.props.BoolProperty(  # type: ignore[valid-type]
+        default=True, options={"HIDDEN"}
+    )
+
+    export_animations: bpy.props.BoolProperty(  # type: ignore[valid-type]
+        name="Export Animations",
+        default=True,
+    )
+
+    def execute(self, context: bpy.context) -> set[str]:
+        """Execute the exporting function."""
+        import pathlib
+        from . import export_files
+
+        export_files.export_files(
+            context,
+            pathlib.Path(self.properties.directory),
+            export_animations=self.export_animations,
+        )
+
+        return {'FINISHED'}
+
+    def invoke(self, context: bpy.context, _: bpy.types.Event) -> None:
+        """Invoke the file selection window."""
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def draw(self, _: bpy.context) -> None:
+        """Draw the export options ui."""
+        col = self.layout.column()
+        col.prop(self, "export_animations")
+
+
 def menu_import(self: bpy.types.TOPBAR_MT_file_import, _: bpy.context) -> None:
     """Add an entry to the import menu."""
     self.layout.operator(TSOIOImport.bl_idname)
 
 
-classes = (TSOIOImport,)
+def menu_export(self: bpy.types.TOPBAR_MT_file_export, _: bpy.context) -> None:
+    """Add an entry to the export menu."""
+    self.layout.operator(TSOIOExport.bl_idname)
+
+
+classes = (TSOIOImport, TSOIOExport)
 
 
 def register() -> None:
@@ -91,6 +142,7 @@ def register() -> None:
         bpy.utils.register_class(cls)
 
     bpy.types.TOPBAR_MT_file_import.append(menu_import)
+    bpy.types.TOPBAR_MT_file_export.append(menu_export)
 
 
 def unregister() -> None:
@@ -99,6 +151,7 @@ def unregister() -> None:
         bpy.utils.unregister_class(cls)
 
     bpy.types.TOPBAR_MT_file_import.remove(menu_import)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_export)
 
 
 if __name__ == "__main__":
