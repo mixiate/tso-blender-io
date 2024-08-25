@@ -30,6 +30,15 @@ def read_bone_binding(file: typing.BinaryIO) -> BoneBinding:
     )
 
 
+def write_bone_binding(file: typing.BinaryIO, bone_binding: BoneBinding) -> None:
+    """Write a bone binding to a file."""
+    file.write(struct.pack('>I', bone_binding.bone_index))
+    file.write(struct.pack('>I', bone_binding.vertex_index))
+    file.write(struct.pack('>I', bone_binding.vertex_count))
+    file.write(struct.pack('>I', bone_binding.blended_vertex_index))
+    file.write(struct.pack('>I', bone_binding.blended_vertex_count))
+
+
 @dataclasses.dataclass
 class Blend:
     """A mesh blend."""
@@ -46,6 +55,12 @@ def read_blend(file: typing.BinaryIO) -> Blend:
     )
 
 
+def write_blend(file: typing.BinaryIO, blend: Blend) -> None:
+    """Write a blend to a file."""
+    file.write(struct.pack('>I', blend.weight))
+    file.write(struct.pack('>I', blend.vertex_index))
+
+
 @dataclasses.dataclass
 class Vertex:
     """mesh File Vertex."""
@@ -60,6 +75,12 @@ def read_vertex(file: typing.BinaryIO) -> Vertex:
         struct.unpack('<3f', file.read(4 * 3)),
         struct.unpack('<3f', file.read(4 * 3)),
     )
+
+
+def write_vertex(file: typing.BinaryIO, vertex: Vertex) -> None:
+    """Write a vertex to a file."""
+    file.write(struct.pack('<3f', *vertex.position))
+    file.write(struct.pack('<3f', *vertex.normal))
 
 
 @dataclasses.dataclass
@@ -115,6 +136,41 @@ def read_mesh(file: typing.BinaryIO) -> Mesh:
     )
 
 
+def write_mesh(file: typing.BinaryIO, mesh: Mesh) -> None:
+    """Write a mesh to a file."""
+    file.write(struct.pack('>I', 0x02))
+
+    file.write(struct.pack('>I', len(mesh.bones)))
+    for bone in mesh.bones:
+        utils.write_string(file, bone)
+
+    file.write(struct.pack('>I', len(mesh.faces)))
+    for face in mesh.faces:
+        file.write(struct.pack('>3I', *face))
+
+    file.write(struct.pack('>I', len(mesh.bone_bindings)))
+    for bone_binding in mesh.bone_bindings:
+        write_bone_binding(file, bone_binding)
+
+    file.write(struct.pack('>I', len(mesh.vertices)))
+
+    for uv in mesh.uvs:
+        file.write(struct.pack('<2f', *uv))
+
+    file.write(struct.pack('>I', len(mesh.blend_vertices)))
+
+    for blend in mesh.blends:
+        write_blend(file, blend)
+
+    file.write(struct.pack('>I', len(mesh.vertices) + len(mesh.blend_vertices)))
+
+    for vertex in mesh.vertices:
+        write_vertex(file, vertex)
+
+    for vertex in mesh.blend_vertices:
+        write_vertex(file, vertex)
+
+
 def read_file(file_path: pathlib.Path) -> Mesh:
     """Read a mesh file."""
     try:
@@ -128,3 +184,9 @@ def read_file(file_path: pathlib.Path) -> Mesh:
 
     except (OSError, struct.error) as exception:
         raise utils.FileReadError from exception
+
+
+def write_file(file_path: pathlib.Path, mesh: Mesh) -> None:
+    """Write a mesh file."""
+    with file_path.open('wb') as file:
+        write_mesh(file, mesh)

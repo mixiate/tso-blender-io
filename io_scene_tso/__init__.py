@@ -106,6 +106,11 @@ class TSOIOExport(bpy.types.Operator):
         default=True, options={"HIDDEN"}
     )
 
+    export_meshes: bpy.props.BoolProperty(  # type: ignore[valid-type]
+        name="Export Meshes",
+        default=True,
+    )
+
     export_animations: bpy.props.BoolProperty(  # type: ignore[valid-type]
         name="Export Animations",
         default=True,
@@ -113,14 +118,27 @@ class TSOIOExport(bpy.types.Operator):
 
     def execute(self, context: bpy.context) -> set[str]:
         """Execute the exporting function."""
+        import io
+        import logging
         import pathlib
         from . import export_files
 
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        log_stream = io.StringIO()
+        logger.addHandler(logging.StreamHandler(stream=log_stream))
+
         export_files.export_files(
             context,
+            logger,
             pathlib.Path(self.properties.directory),
+            export_meshes=self.export_meshes,
             export_animations=self.export_animations,
         )
+
+        log_output = log_stream.getvalue()
+        if log_output != "":
+            self.report({"ERROR"}, log_output)
 
         return {'FINISHED'}
 
@@ -132,6 +150,7 @@ class TSOIOExport(bpy.types.Operator):
     def draw(self, _: bpy.context) -> None:
         """Draw the export options ui."""
         col = self.layout.column()
+        col.prop(self, "export_meshes")
         col.prop(self, "export_animations")
 
 
