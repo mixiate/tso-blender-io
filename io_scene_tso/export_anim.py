@@ -1,6 +1,7 @@
 """Export The Sims Online anim files."""
 
 import bpy
+import itertools
 import mathutils
 import pathlib
 
@@ -36,26 +37,23 @@ def export_anim(
         if not uses_positions and not uses_rotations:
             continue
 
-        parent_bone_matrix = mathutils.Matrix()
-        if bone.parent:
-            parent_bone_matrix = bone.parent.bone.matrix_local @ utils.BONE_ROTATION_OFFSET_INVERTED
+        bone_locations = []
+        bone_rotations = []
 
         for frame in range(int(action.frame_start), int(action.frame_end) + 1):
-            translation = mathutils.Matrix()
             if uses_positions:
-                translation = mathutils.Matrix.Translation(
+                bone_locations.append(
                     mathutils.Vector(
                         (
                             action.fcurves.find(location_data_path, index=0).evaluate(frame),
                             action.fcurves.find(location_data_path, index=1).evaluate(frame),
                             action.fcurves.find(location_data_path, index=2).evaluate(frame),
                         ),
-                    ),
+                    )
                 )
 
-            rotation = mathutils.Matrix()
             if uses_rotations:
-                rotation = (
+                bone_rotations.append(
                     mathutils.Quaternion(
                         (
                             action.fcurves.find(rotation_data_path, index=0).evaluate(frame),
@@ -64,23 +62,41 @@ def export_anim(
                             action.fcurves.find(rotation_data_path, index=3).evaluate(frame),
                         ),
                     )
-                    .to_matrix()
-                    .to_4x4()
                 )
 
+        if all(location == mathutils.Vector() for location in bone_locations):
+            uses_positions = False
+
+        if all(rotation == mathutils.Quaternion() for rotation in bone_rotations):
+            uses_rotations = False
+
+        if not uses_positions and not uses_rotations:
+            continue
+
+        parent_bone_matrix = mathutils.Matrix()
+        if bone.parent:
+            parent_bone_matrix = bone.parent.bone.matrix_local @ utils.BONE_ROTATION_OFFSET_INVERTED
+
+        for translation, rotation in itertools.zip_longest(bone_locations, bone_rotations):
+            translation_matrix = mathutils.Matrix()
+            if translation:
+                translation_matrix = mathutils.Matrix.Translation(translation)
+
+            rotation_matrix = mathutils.Matrix()
+            if rotation:
+                rotation_matrix = rotation.to_matrix().to_4x4()
+
             bone_matrix = bone.bone.convert_local_to_pose(
-                translation @ rotation,
+                translation_matrix @ rotation_matrix,
                 bone.bone.matrix_local,
             )
             bone_matrix = parent_bone_matrix.inverted() @ bone_matrix
             bone_matrix @= utils.BONE_ROTATION_OFFSET_INVERTED
 
             if uses_positions:
-                translation = bone_matrix.to_translation() * utils.BONE_SCALE
-                translations.append(translation)
+                translations.append(bone_matrix.to_translation() * utils.BONE_SCALE)
             if uses_rotations:
-                rotation = bone_matrix.to_quaternion()
-                rotations.append(rotation)
+                rotations.append(bone_matrix.to_quaternion())
 
         time_property_list = anim.TimePropertyList([])
 

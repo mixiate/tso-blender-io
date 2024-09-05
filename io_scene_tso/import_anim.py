@@ -120,6 +120,21 @@ def import_anim(
             create_fcurve_data(action, data_path, 2, motion.frame_count, rotations_y)
             create_fcurve_data(action, data_path, 3, motion.frame_count, rotations_z)
 
+    # create a single default keyframe for any locations or rotations not used by the animation
+    for bone in armature_object.pose.bones:
+        location_data_path = bone.path_from_id("location")
+        rotation_data_path = bone.path_from_id("rotation_quaternion")
+
+        if not action.fcurves.find(location_data_path):
+            create_fcurve_data(action, location_data_path, 0, 1, (1.0, 0.0))
+            create_fcurve_data(action, location_data_path, 1, 1, (1.0, 0.0))
+            create_fcurve_data(action, location_data_path, 2, 1, (1.0, 0.0))
+        if not action.fcurves.find(rotation_data_path):
+            create_fcurve_data(action, rotation_data_path, 0, 1, (1.0, 1.0))
+            create_fcurve_data(action, rotation_data_path, 1, 1, (1.0, 0.0))
+            create_fcurve_data(action, rotation_data_path, 2, 1, (1.0, 0.0))
+            create_fcurve_data(action, rotation_data_path, 3, 1, (1.0, 0.0))
+
     for motion in animation.motions:
         for time_property_list in motion.time_property_lists:
             for time_property in time_property_list.time_properties:
