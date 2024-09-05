@@ -2,7 +2,7 @@
 
 bl_info = {
     "name": "The Sims Online 3D Formats",
-    "description": "Import and export The Sims Online meshes and animations.",
+    "description": "Import and export The Sims Online meshes and animations",
     "author": "mix",
     "version": (1, 0, 0),
     "blender": (4, 1, 0),
